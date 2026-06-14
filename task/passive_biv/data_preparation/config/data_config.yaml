@@ -1,0 +1,11 @@
+dataset_name: passive_biv
+start_index: 1
+sample_size: 61
+train_split_ratio: 0.9
+chunk_file_size: 25
+overwrite_data: True
+overwrite_stats: True
+sections: [0, 20, 100, 250, 500, 1000]
+nodes_per_sections: [20, 30, 30, 10, 10]
+train_down_sampling_node: 10000
+val_down_sampling_node: 10000
