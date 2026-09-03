@@ -31,7 +31,7 @@ def expand_sample_indices(sample_indices, graph_mapping) -> Dict:
         elif o_graph in sample_indices_extended[VALIDATION_NAME]:
             sample_indices_extended[VALIDATION_NAME].add(g_graph)
         else:
-            raise ValueError(f"failed to get source graph of {o_graph}")
+            print(f"failed to get source graph of {o_graph} from {g_graph}")
 
     return {k: sorted(list(v)) for k, v in sample_indices_extended.items()}
 
@@ -50,9 +50,18 @@ if __name__ == "__main__":
         help="config path location",
     )
 
+    parser.add_argument(
+        "--restrict_extend",
+        type=bool,
+        default=False,
+        help="By default, strict validation is required, set true to ensure image is assigned to train/test "
+             "based on the category of its corresponding source image.",
+    )
+
     args: (argparse.Namespace, List[str]) = parser.parse_known_args()
 
     path = args[0].config_path
+    restrict_extend = args[0].restrict_extend
 
     data_config = import_data_config(path)
 
@@ -69,8 +78,9 @@ if __name__ == "__main__":
     graph_mapping = load_graph_mapping(data_config["mapping_file"])
 
     # generate full sample indices based on the mapping group
-    sample_indices_dict = expand_sample_indices(sample_indices_dict, graph_mapping)
-    print(f"data expand: {sample_indices_dict}")
+    if restrict_extend:
+        sample_indices_dict = expand_sample_indices(sample_indices_dict, graph_mapping)
+        print(f"data expand: {sample_indices_dict}")
 
     # directly copy validation file to test file
     sample_indices_dict[TEST_NAME] = sample_indices_dict[VALIDATION_NAME]
