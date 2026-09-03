@@ -297,7 +297,7 @@ pyrightconfig.json
 .DS_Store
 
 test_case
-tmp*
+tmp
 data/passive_biv
 data/passive_lv
 log

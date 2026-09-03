@@ -98,6 +98,7 @@ class FEHeartSimSageTrainDataset(MultiHDF5Dataset):
             "shape_coeffs": self._shape_coeff_stats_path,
             "mat_param": self._mat_param_stats_path,
             "pressure": self._pressure_stats_path,
+            # "time": self._time_stats_path,
         }
 
         transform_list.append(MaxMinNorm(norm_config, True, True))

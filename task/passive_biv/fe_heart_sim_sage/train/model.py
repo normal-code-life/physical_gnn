@@ -47,7 +47,10 @@ class FEHeartSimSageTrainer(BaseTrainer):
         self.model = FEHeartSimSAGEModel(self.task_train)
 
     def validation_step_check(self, epoch: int, is_last_epoch: bool) -> bool:
-        return True
+        if epoch <= 20 or epoch % 5 == 0 or is_last_epoch:
+            return True
+        else:
+            return False
 
     def post_transform_data(
         self, data: (Union[Dict[str, Tensor], Tensor], Union[Dict[str, Tensor], Tensor])
