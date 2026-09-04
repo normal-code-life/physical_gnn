@@ -1,3 +1,5 @@
+"""Analyze how distance-based edge sampling affects single-case predictions."""
+
 import os
 import sys
 from typing import Dict, Tuple, Union
@@ -243,6 +245,7 @@ class FEHeartSageV2Evaluation(FEHeartSageDataset):
 
     @staticmethod
     def total_params_count(model: nn.Module) -> None:
+        """Print the model structure and its total and trainable parameter counts."""
         logger.info(f"print model arch: {model}")
 
         total_params = sum(p.numel() for p in model.parameters())

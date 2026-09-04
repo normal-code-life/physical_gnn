@@ -1,3 +1,5 @@
+"""Trainer and GraphSAGE-style model for passive BiV displacement prediction."""
+
 from typing import Any, Dict, Union
 
 import numpy as np
@@ -21,16 +23,19 @@ torch.set_printoptions(precision=8)
 
 
 class FEHeartSimSageTrainer(BaseTrainer):
+    """Specialize the generic trainer for sampled-node heart simulations."""
+
     dataset_class = FEHeartSimSageTrainDataset
 
     def __init__(self) -> None:
+        """Load sampling controls and optional displacement de-normalization data."""
         super().__init__()
 
-        # global tune hyper param
+        # Sampling controls bound the graph work performed by each training step.
         self._select_node_num = self.task_data["select_node_num"]
         self._select_edge_num = self.task_data["select_edge_num"]
 
-        # normalize val dataset
+        # Load training bounds when validation labels remain in physical units.
         self._normalize_val_objective = self.task_data["normalize_val_objective"]
         if not self._normalize_val_objective:
             base_data_path = self.task_data["base_data_path"]
@@ -44,9 +49,11 @@ class FEHeartSimSageTrainer(BaseTrainer):
                 self._displacement_stats_max = torch.tensor(self._displacement_stats[MAX_VAL], device="cuda")
 
     def create_model(self) -> None:
+        """Build the passive BiV GraphSAGE model from task configuration."""
         self.model = FEHeartSimSAGEModel(self.task_train)
 
     def validation_step_check(self, epoch: int, is_last_epoch: bool) -> bool:
+        """Validate frequently at startup, every fifth epoch, and at completion."""
         if epoch <= 20 or epoch % 5 == 0 or is_last_epoch:
             return True
         else:
@@ -55,6 +62,7 @@ class FEHeartSimSageTrainer(BaseTrainer):
     def post_transform_data(
         self, data: (Union[Dict[str, Tensor], Tensor], Union[Dict[str, Tensor], Tensor])
     ) -> (Union[Dict[str, Tensor], Tensor], Union[Dict[str, Tensor], Tensor], Dict[str, Any]):
+        """Sample training nodes and align labels with the selected subgraph."""
         inputs, labels, args = super().post_transform_data(data)
 
         _, node_num, _ = inputs["edges_indices"].shape
@@ -75,6 +83,7 @@ class FEHeartSimSageTrainer(BaseTrainer):
     def post_transform_val_data(
         self, data: (Union[Dict[str, Tensor], Tensor], Union[Dict[str, Tensor], Tensor])
     ) -> (Union[Dict[str, Tensor], Tensor], Union[Dict[str, Tensor], Tensor], Dict[str, Any]):
+        """Evaluate all nodes while retaining the configured edge sample count."""
         inputs, labels, args = super().post_transform_val_data(data)
 
         _, node_num, _ = inputs["edges_indices"].shape
@@ -90,6 +99,7 @@ class FEHeartSimSageTrainer(BaseTrainer):
         return inputs, labels, args
 
     def compute_validation_loss(self, predictions: Dict[str, Tensor], labels: Dict[str, Tensor]) -> Dict[str, Tensor]:
+        """Compute label losses in the same normalized or physical space as targets."""
         losses = dict()
 
         for label_name in self.labels:
@@ -108,6 +118,7 @@ class FEHeartSimSageTrainer(BaseTrainer):
     def compute_metrics(
         self, metrics_func: callable, predictions: Dict[str, Tensor], labels: Dict[str, Tensor]
     ) -> Union[Dict[str, Tensor], Tensor]:
+        """Compute per-label metrics after any required de-normalization."""
         metrics = dict()
 
         for label_name in self.labels:
@@ -126,17 +137,20 @@ class FEHeartSimSageTrainer(BaseTrainer):
 
 
 class FEHeartSimSAGEModel(BaseModule):
+    """Predict nodal displacement by aggregating sampled neighbor messages."""
+
     def __init__(self, config: Dict, *args, **kwargs) -> None:
+        """Store encoder, message-passing, decoder, and device configuration."""
         super().__init__(config, *args, **kwargs)
 
-        # mlp layer config
+        # Separate feature encoders and decoders make their dimensions configurable.
         self._input_layer_config = config["input_layer"]
         self._edge_mlp_layer_config = config["edge_mlp_layer"]
         self._edge_laplace_mlp_layer_config = config["edge_laplace_mlp_layer"]
         # self._theta_input_mlp_layer_config = config["theta_input_mlp_layer"]
         self._decoder_layer_config = config["decoder_layer"]
 
-        # message config
+        # Message updates can use either attention or a direct MLP.
         self._message_passing_layer_config = config["message_passing_layer"]
 
         self._device = config["device"]
@@ -144,6 +158,7 @@ class FEHeartSimSAGEModel(BaseModule):
         self._init_graph()
 
     def get_config(self) -> Dict:
+        """Return model component and device configuration."""
         base_config = super().get_config()
 
         mlp_config = {
@@ -157,7 +172,8 @@ class FEHeartSimSAGEModel(BaseModule):
         return {**base_config, **mlp_config}
 
     def _init_graph(self):
-        # Input layer
+        """Construct feature encoders, message aggregation, and output decoders."""
+        # Build one input encoder for each configured feature group.
         self._input_layer: nn.ModuleList = nn.ModuleList()
         for layer_name, layer_config in self._input_layer_config.items():
             self._input_layer.append(MLPLayer(layer_config, prefix_name=layer_name))
@@ -190,14 +206,14 @@ class FEHeartSimSAGEModel(BaseModule):
                 f"please define the arch properly, current is {self._message_passing_layer_config['arch']}"
             )
 
-        # aggregator pooling
+        # Resolve the configured aggregation class from the imported layer names.
         agg_method = self._message_passing_layer_config["agg_method"]
         self._message_agg_pooling = globals()[agg_method](self._message_passing_layer_config["agg_layer"])
 
         # theta mlp
         # self._theta_encode_mlp_layer = MLPLayer(self._theta_input_mlp_layer_config, prefix_name="theta_encode")
 
-        # decoder MLPs
+        # Use an independent decoder for every displacement component.
         decoder_layer_config = self._decoder_layer_config
         self._decoder_layer = nn.ModuleList(
             [
@@ -208,6 +224,7 @@ class FEHeartSimSAGEModel(BaseModule):
 
     @staticmethod
     def _random_select_edge(indices: Tensor, device: str, selected_edge_num: int) -> Tensor:
+        """Sample a fixed number of neighbor indices for every node in a batch."""
         batch_size, node_num, seq_num = indices.shape
 
         select_batch = torch.arange(batch_size, device=indices.device)
@@ -228,6 +245,7 @@ class FEHeartSimSAGEModel(BaseModule):
 
     @staticmethod
     def _generate_edge_emb(node_emb: Tensor, input_edge_indices: Tensor) -> Tensor:
+        """Gather neighbor embeddings for every supplied edge index."""
         emb_dim: int = node_emb.shape[-1]  # feature for each of the node
         seq: int = input_edge_indices.shape[-1]  # neighbours seq for each of the center node
 
@@ -249,6 +267,7 @@ class FEHeartSimSAGEModel(BaseModule):
 
     @staticmethod
     def _generate_edge_coord(input_node_coord: Tensor, input_edge_indices: Tensor) -> torch.Tensor:
+        """Compute center-to-neighbor coordinate offsets for indexed edges."""
         coord_dim: int = input_node_coord.shape[-1]  # coord for each of the node
         seq: int = input_edge_indices.shape[-1]  # neighbours seq for each of the center node
 
@@ -309,7 +328,7 @@ class FEHeartSimSAGEModel(BaseModule):
         )  # shape: (batch_size, node_num, emb)
 
         # ====== Message passing Encoder & Aggregate
-        # ============ generate node emb (node emb itself)  TODO: test whether to involve the node itself
+        # ============ generate node emb (node emb itself)
         node_emb = torch.concat(
             [input_node_laplace_coord_emb, input_node_fea_emb, global_fea_expanded], dim=-1
         )  # (batch_size, node_num, node_emb)

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Configure and launch model training, with an optional model-name override.
 export TASK_NAME="passive_biv"
 export MODEL_NAME="fe_heart_sim_sage"
 
@@ -15,6 +16,5 @@ echo "project root path: ${PROJECT_PATH}"
 
 export CONFIG_NAME="train_config"
 export TASK_TYPE="model_train"
-
 
 sh "${PROJECT_PATH}/common/sbin/main_process.sh"

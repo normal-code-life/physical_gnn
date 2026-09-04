@@ -1,3 +1,5 @@
+"""Legacy base dataset with shared paths and hardware configuration."""
+
 import abc
 import os
 import platform
@@ -33,24 +35,21 @@ class BaseAbstractDataset(abc.ABC):
         logger.info(f"=== Init BaseAbstractDataset {data_type} data config start ===")
         logger.info(f"data_config is: {data_config}")
 
-        # common config
-        # === Hardware configuration
+        # Capture hardware configuration for data-loading decisions.
         self.gpu = data_config.get("gpu", False)
         self.cuda_core = data_config.get("cuda_core", 0)
         self.platform = platform.system()
 
-        # === model_name
+        # Identify the model and task that consume this dataset.
         self.model_name = data_config["model_name"]
 
-        # === data type
         self.task_name = data_config["task_name"]
         self.data_type = data_type
 
-        # === exp
+        # The experiment name is optional for reusable datasets.
         self.exp_name = data_config.get("exp_name", "")
 
-        # common path
-        # === base path
+        # Resolve the repository, data, and task roots.
         self.base_repo_path = data_config["repo_path"]
         self.base_data_path = data_config["task_data_path"]
         self.base_task_path = data_config["task_path"]
@@ -58,7 +57,7 @@ class BaseAbstractDataset(abc.ABC):
         if not os.path.isdir(self.base_data_path):
             raise NotADirectoryError(f"No directory at: {self.base_data_path}")
 
-        # === traditional model training dataset path (non-tfrecord version)
+        # Derive paths for conventional file-based training data.
         self.stats_data_path = f"{self.base_data_path}/stats"
         self.dataset_path = f"{self.base_data_path}/datasets/{self.data_type}"
         self.data_size_path = f"{self.stats_data_path}/{self.data_type}_data_size.npy"
@@ -69,23 +68,22 @@ class BaseAbstractDataset(abc.ABC):
         logger.info(f"dataset_path is {self.dataset_path}")
         logger.info(f"data_size_path is {self.data_size_path}")
 
-        # hdf5 config
+        # HDF5 shards are addressed by a numeric format placeholder.
         self.dataset_h5_path = f"{self.dataset_path}" + "/data_{}.h5"
 
         logger.info(f"dataset_h5_path is {self.dataset_h5_path}")
 
-        # tfrecord config
-        # === tfrecord model training dataset path (tfrecord version)
+        # TFRecord shards follow the same numeric naming convention.
         self.tfrecord_data_path = f"{self.dataset_path}" + "/data_{}.tfrecord"
 
         logger.info(f"tfrecord_data_path is {self.tfrecord_data_path}")
 
-        # === tfrecord file compression type
+        # No TFRecord compression is assumed by default.
         self.compression_type = None
 
-        # tfrecord features
-        self.context_description: Optional[Dict[str, str]] = None  # please overwrite this variable
+        # Concrete datasets must supply schemas for context and sequence data.
+        self.context_description: Optional[Dict[str, str]] = None
 
-        self.feature_description: Optional[Dict[str, str]] = None  # please overwrite this variable
+        self.feature_description: Optional[Dict[str, str]] = None
 
         logger.info(f"=== Init BaseAbstractDataset {data_type} data config done ===")

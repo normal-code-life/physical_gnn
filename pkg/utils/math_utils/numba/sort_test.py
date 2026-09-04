@@ -1,3 +1,5 @@
+"""Correctness and performance checks for Numba sorting helpers."""
+
 import time
 
 import numpy as np
@@ -6,6 +8,7 @@ from pkg.utils.math_utils.numba.sort import argsort as nb_argsort
 
 
 def accuracy_test():
+    """Compare custom and NumPy sort indices on a known input."""
     data = np.array([30, 10, 50, 20, 40])
     sorted_indices_numba = nb_argsort(data.copy())
     sorted_indices_numpy = np.argsort(data)
@@ -19,6 +22,7 @@ def accuracy_test():
 
 
 def efficiency_test():
+    """Print comparative timings across increasingly large random arrays."""
     for sample in [100, 1000, 10000, 1000000, 10000000, 1000000000]:
         start_time = time.time()
 

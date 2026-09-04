@@ -1,3 +1,5 @@
+"""Configuration path resolution for passive BiV data preparation."""
+
 import os
 import sys
 from typing import Dict

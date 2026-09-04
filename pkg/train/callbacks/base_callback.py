@@ -1,4 +1,4 @@
-"""export from keras."""
+"""Keras-inspired callback hooks for the custom PyTorch training loop."""
 import abc
 from typing import Dict, List, Optional
 
@@ -11,6 +11,8 @@ logger = init_logger("CALLBACK")
 
 
 class CallBack(abc.ABC):
+    """Define no-op lifecycle hooks that specialized callbacks may override."""
+
     model: nn.Module
 
     optimizer: Optimizer
@@ -18,6 +20,7 @@ class CallBack(abc.ABC):
     use_gpu: bool
 
     def __init__(self, task_base_param: Dict, logs_param: Dict):
+        """Initialize shared task and log paths for a callback."""
         self.params: Dict = dict()
 
         self.task_dir = task_base_param["task_path"]
@@ -25,12 +28,15 @@ class CallBack(abc.ABC):
         self.log_dir = task_base_param["logs_base_path"]
 
     def set_model(self, model: nn.Module) -> None:
+        """Attach the model managed by the training loop."""
         self.model = model
 
     def set_optimizer(self, optimizer: Optimizer) -> None:
+        """Attach the optimizer managed by the training loop."""
         self.optimizer = optimizer
 
     def set_gpu_info(self, use_gpu: bool):
+        """Record whether the training loop is using a GPU."""
         self.use_gpu = use_gpu
 
     def on_batch_begin(self, batch, **kwargs):
@@ -183,6 +189,7 @@ class CallbackList(object):
     """Container abstracting a list of callbacks."""
 
     def __init__(self, callbacks: Optional[List[CallBack]], model: nn.Module, optimizer: Optimizer, use_gpu: bool):
+        """Attach shared training objects to every callback in ``callbacks``."""
         self.callbacks = callbacks
 
         self.set_model(model)
@@ -192,18 +199,22 @@ class CallbackList(object):
         self.set_gpu_info(use_gpu)
 
     def set_model(self, model: nn.Module):
+        """Attach ``model`` to every registered callback."""
         for callback in self.callbacks:
             callback.set_model(model)
 
     def set_optimizer(self, optimizer: Optimizer):
+        """Attach ``optimizer`` to every registered callback."""
         for callback in self.callbacks:
             callback.set_optimizer(optimizer)
 
     def set_gpu_info(self, use_gpu: bool):
+        """Propagate the GPU-usage flag to every registered callback."""
         for callback in self.callbacks:
             callback.set_gpu_info(use_gpu)
 
     def append(self, callback):
+        """Add a callback to the end of the invocation order."""
         self.callbacks.append(callback)
 
     def on_epoch_begin(self, epoch, **kwargs):
@@ -285,4 +296,5 @@ class CallbackList(object):
             callback.on_evaluation_end(**kwargs)
 
     def __iter__(self):
+        """Iterate over callbacks in their invocation order."""
         return iter(self.callbacks)

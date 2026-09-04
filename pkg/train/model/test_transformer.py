@@ -1,9 +1,12 @@
+"""Smoke tests for the custom multi-head attention layer."""
+
 import torch
 
 from pkg.train.model.transformer import MultiHeadAttention
 
 
 def test_basic_functionality():
+    """Verify configuration properties and output tensor shape."""
     config = {"d_model": 512, "n_heads": 8, "dropout": 0.1}
 
     attention = MultiHeadAttention(config)

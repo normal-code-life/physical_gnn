@@ -1,3 +1,5 @@
+"""TensorBoard metric logging and optional PyTorch profiling callback."""
+
 from typing import Dict, Optional
 
 import torch
@@ -42,6 +44,7 @@ class TensorBoardCallback(CallBack):
     """
 
     def __init__(self, task_base_param: Dict, param: Dict) -> None:
+        """Create the summary writer and optional scheduled profiler."""
         super(TensorBoardCallback, self).__init__(task_base_param, param)
 
         use_profiler: bool = param["profiler"]
@@ -66,10 +69,12 @@ class TensorBoardCallback(CallBack):
         self.logger = init_logger("TENSORBOARD_CALLBACK")
 
     def on_train_begin(self):
+        """Start profiling when it is configured."""
         if self.profiler:
             self.profiler.start()
 
     def on_train_end(self, **kwargs):
+        """Stop profiling and close the TensorBoard writer."""
         self.logger.info("====== model training end ======")
 
         if self.profiler:
@@ -78,10 +83,12 @@ class TensorBoardCallback(CallBack):
         self.writer.close()
 
     def on_epoch_begin(self, epoch, **kwargs):
+        """Advance the profiler schedule at the start of an epoch."""
         if self.profiler:
             self.profiler.step()
 
     def on_epoch_end(self, epoch, **kwargs):
+        """Write training and validation scalars for the completed epoch."""
         if "train_metrics" in kwargs:
             train_metrics = kwargs["train_metrics"]
 

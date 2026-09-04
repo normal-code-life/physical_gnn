@@ -1,3 +1,5 @@
+"""Command-line entry point for passive BiV model training."""
+
 import argparse
 import os
 import sys
@@ -7,6 +9,7 @@ from pkg.utils.other_utils import io
 from task.passive_biv.fe_heart_sim_sage.train.model import FEHeartSimSageTrainer
 
 if __name__ == "__main__":
+    # Supply project defaults when the script is launched without runner arguments.
     if len(sys.argv) <= 1 or "repo_path" not in sys.argv[1]:
         cur_path = os.path.abspath(sys.argv[0])
         task_dir = io.get_repo_path(cur_path)
@@ -32,6 +35,7 @@ if __name__ == "__main__":
 
     args: (argparse.Namespace, List[str]) = parser.parse_known_args()
 
+    # Dispatch to the trainer selected on the command line.
     if args[0].model_name == "fe_heart_sim_sage":
         model = FEHeartSimSageTrainer()
     else:

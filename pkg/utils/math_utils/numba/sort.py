@@ -1,7 +1,9 @@
+"""Numba-compiled sorting helpers for large numeric arrays."""
+
 import numpy as np
 from numba import njit
 
-# To fully leverage the capabilities of multi-core CPUs, we use Numba to process certain large-scale datasets.
+# JIT compilation keeps this hot path efficient for large dataset preprocessing.
 
 
 @njit

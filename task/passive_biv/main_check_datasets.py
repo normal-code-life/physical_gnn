@@ -1,3 +1,5 @@
+"""Manually inspect passive BiV dataset iteration order and throughput."""
+
 import time
 
 from torch.utils.data import DataLoader

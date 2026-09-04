@@ -1,10 +1,13 @@
+"""Manual smoke tests for shared tensor operations."""
+
 import torch
 
 from pkg.dnn_utils.method import segment_sum
 
 
 def test_segment_sum():
-    # Example data
+    """Print segment sums for a small, easy-to-inspect input tensor."""
+    # Each consecutive pair of rows belongs to the same segment.
     data = torch.tensor(
         [
             [1, 2, 3, 4, 5],
@@ -15,10 +18,10 @@ def test_segment_sum():
             [26, 27, 28, 29, 30],
         ]
     )
-    segment_ids = torch.tensor([0, 0, 1, 1, 2, 2])  # Indicates the segment each element belongs to
-    num_segments = 3  # Total number of segments
+    segment_ids = torch.tensor([0, 0, 1, 1, 2, 2])
+    num_segments = 3
 
-    # Call segment_sum function
+    # Display the aggregate for manual verification.
     segment_sums = segment_sum(data, segment_ids, num_segments)
     print("Sum of each segment:", segment_sums)
 

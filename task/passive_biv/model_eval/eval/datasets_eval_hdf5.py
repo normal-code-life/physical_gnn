@@ -1,6 +1,6 @@
-import os
+"""Prepare single passive BiV cases and export quantitative evaluation results."""
+
 import platform
-import sys
 from typing import Dict, Tuple, Union
 
 import numpy as np
@@ -15,11 +15,8 @@ from common.constant import DARWIN, MAX_VAL, MIN_VAL
 from pkg.train.datasets.base_datasets_train import MultiHDF5Dataset
 from pkg.train.module.data_transform import ConvertToModelInputs, MaxMinNorm, ToTensor, UnSqueezeDataDim
 from pkg.train.module.loss import EuclideanDistanceMSE
-from pkg.train.trainer.base_trainer import TrainerConfig
 from pkg.utils.data_utils.edge_generation import generate_distance_based_edges_nb, generate_distance_based_edges_ny
-from pkg.utils.other_utils import io
 from pkg.utils.other_utils.logs import init_logger
-from pkg.utils.other_utils.model_summary import summary_model
 
 logger = init_logger("SINGLE_CASE_EVAL")
 
@@ -257,7 +254,7 @@ class FEHeartSimSageEvaluation(MultiHDF5Dataset):
             "pressure": 0,
             "shape_coeffs": 0,
         }
-        # transform_list.append(UnSqueezeDataDim(unsqueeze_data_dim_config))
+        transform_list.append(UnSqueezeDataDim(unsqueeze_data_dim_config))
 
         convert_model_input_config = {"labels": self._labels}
 
@@ -269,6 +266,7 @@ class FEHeartSimSageEvaluation(MultiHDF5Dataset):
 
     @staticmethod
     def total_params_count(model: nn.Module) -> None:
+        """Print the model structure and its total and trainable parameter counts."""
         logger.info(f"print model arch: {model}")
 
         total_params = sum(p.numel() for p in model.parameters())
@@ -282,6 +280,7 @@ class FEHeartSimSageEvaluation(MultiHDF5Dataset):
         print(f"{'=' * 50}\n")
 
     def convert_outputs(self, outputs: torch.tensor) -> torch.tensor:
+        """Convert normalized displacement predictions back to physical units."""
         stats = np.load(self._displacement_stats_path)
 
         max_val = torch.tensor(stats[MAX_VAL], device=self.device)
@@ -290,35 +289,43 @@ class FEHeartSimSageEvaluation(MultiHDF5Dataset):
         return outputs["displacement"] * (max_val - min_val) + min_val
 
     def calc_l1_loss(self, outputs, labels) -> torch.tensor:
+        """Return mean absolute error over all displacement components."""
         return torchmetrics.functional.mean_absolute_error(outputs, labels)
 
     def calc_l2_loss(self, outputs, labels) -> torch.tensor:
+        """Return mean Euclidean displacement error."""
         l2_loss = EuclideanDistanceMSE()
         return l2_loss(outputs, labels)
 
     def calc_l2_loss_perc(self, outputs, labels) -> torch.tensor:
+        """Return mean vector-error magnitude relative to target magnitude."""
         labels_norm = torch.sqrt((torch.sum(labels**2, dim=-1)))
         gap_norm = torch.sqrt((torch.sum((outputs - labels) ** 2, dim=-1)))
         return torch.mean(gap_norm / labels_norm)
 
     def calc_l2_loss_perc2(self, outputs, labels) -> torch.tensor:
+        """Return mean relative error between predicted and target magnitudes."""
         labels_norm = torch.sqrt((torch.sum(labels**2, dim=-1)))
         pred_norm = torch.sqrt((torch.sum(outputs**2, dim=-1)))
         return torch.mean(torch.abs(pred_norm - labels_norm) / labels_norm)
 
     def sample_l1_loss(self, outputs, labels) -> torch.tensor:
+        """Return signed component-wise errors for every sample node."""
         l1_loss = outputs - labels
         return l1_loss
 
     def sample_l2_loss(self, outputs, labels) -> torch.tensor:
+        """Return Euclidean displacement error for every sample node."""
         l2_loss = torch.sqrt((torch.sum((outputs - labels) ** 2, dim=-1, keepdim=True)))
         return l2_loss
 
     def save_single_outputs(self, outputs: torch.tensor, idx: int) -> torch.tensor:
+        """Save one case's displacement predictions as a CSV file."""
         df = pd.DataFrame(outputs.squeeze(0).numpy())
         df.to_csv(f"{self.output_path}/output_{idx + 1:04d}.csv", index=False)
 
     def save_numpy_outputs(self, name, outputs) -> torch.tensor:
+        """Save a named aggregate result object in NumPy format."""
         np.save(f"{self.output_path}/{name}.npy", outputs, allow_pickle=True)
 
 

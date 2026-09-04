@@ -1,3 +1,5 @@
+"""Convert raw passive BiV simulation cases into training-ready HDF5 shards."""
+
 from typing import Dict, List, Optional
 
 import h5py
@@ -27,6 +29,7 @@ class PassiveBiVPreparationDataset(AbstractDataPreparationDataset):
     """
 
     def __init__(self, data_config: Dict) -> None:
+        """Resolve raw-data paths, schemas, sampling options, and statistics paths."""
         super().__init__(data_config)
 
         # node related features
@@ -95,14 +98,12 @@ class PassiveBiVPreparationDataset(AbstractDataPreparationDataset):
 
         self._labels = {"displacement", "stress"}
 
-        # sample indices
+        # Limit generation and statistics to the split assigned by the caller.
         self._sample_indices = data_config["sample_indices"]
 
-        # other parameter
-        # === param sample size for each files
+        # Control HDF5 shard size and distance-based graph connectivity.
         self._chunk_file_size = data_config["chunk_file_size"]
 
-        # === param random select edges based on node relative distance
         self._sections = data_config["sections"]
         self._nodes_per_sections = data_config["nodes_per_sections"]
         self._train_down_sampling_node: Optional[float] = data_config.get("train_down_sampling_node", None)
@@ -121,7 +122,7 @@ class PassiveBiVPreparationDataset(AbstractDataPreparationDataset):
         - Shape coefficients
         - Ground truth displacements and stresses
         """
-        # read global features
+        # Global features are indexed once and reused across all case files.
         data_global_feature = np.loadtxt(self._global_feature_data_path, delimiter=",")
         data_shape_coeff = np.loadtxt(self._shape_data_path, delimiter=",")
 
@@ -133,7 +134,7 @@ class PassiveBiVPreparationDataset(AbstractDataPreparationDataset):
             datasets = []
 
             for idx in indices:
-                # read sample inputs
+                # Case filenames use one-based identifiers even though arrays are zero-based.
                 read_file_name = f"/ct_case_{idx + 1:04d}.csv"  # e.g. ct_case_0005
 
                 record_inputs = np.loadtxt(self._inputs_data_path + read_file_name, delimiter=",", dtype=np.float32)
@@ -225,7 +226,7 @@ class PassiveBiVPreparationDataset(AbstractDataPreparationDataset):
         nodes_per_section_nb = Numba_List()
         [nodes_per_section_nb.append(x) for x in self._nodes_per_sections]
 
-        # need to expand the axis and align with the other method
+        # Match the batch-shaped output returned by the NumPy implementation.
         return generate_distance_based_edges_nb(node_coords, sections_nb, nodes_per_section_nb)[np.newaxis, :].astype(
             np.int32
         )

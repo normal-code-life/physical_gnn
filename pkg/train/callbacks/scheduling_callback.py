@@ -1,3 +1,5 @@
+"""Callback that releases GPU resources during configured pause periods."""
+
 import time
 from datetime import datetime
 from typing import Dict
@@ -28,6 +30,7 @@ class SchedulingCallback(CallBack):
     """
 
     def __init__(self, task_base_param: Dict, param: Dict) -> None:
+        """Initialize the callback's pause-state tracker."""
         super(SchedulingCallback, self).__init__(task_base_param, param)
 
         self.dive_in_sleeping_time = False
@@ -54,7 +57,7 @@ class SchedulingCallback(CallBack):
 
                 torch.cuda.empty_cache()  # Clear GPU memory
 
-            time.sleep(600)  # Check every minute if training can resume
+            time.sleep(600)  # Check periodically whether training can resume.
 
             self.dive_in_sleeping_time = True
 

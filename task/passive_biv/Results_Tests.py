@@ -1,9 +1,11 @@
+"""Export original and predicted displacements for visual comparison in PyVista."""
+
 import os
 
 import numpy as np
 import pyvista as pv
 
-# Replace 'your_folder_path' with the path to your folder
+# Configure the case and output folder used by this manual visualization script.
 folder_path = "check_data"
 index = 3
 os.makedirs(folder_path, exist_ok=True)

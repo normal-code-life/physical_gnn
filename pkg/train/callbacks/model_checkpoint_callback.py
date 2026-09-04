@@ -1,3 +1,5 @@
+"""Callback for persisting periodic checkpoints and serialized models."""
+
 import os
 import shutil
 from typing import Dict, Optional
@@ -11,7 +13,10 @@ logger = init_logger("MODEL_CHECKPOINT")
 
 
 class ModelCheckpointCallback(CallBack):
+    """Save training state on a schedule and optionally track the best model."""
+
     def __init__(self, task_base_param: Dict, param: Dict) -> None:
+        """Initialize output directories and checkpoint selection policies."""
         super(ModelCheckpointCallback, self).__init__(task_base_param, param)
         self.checkpoint_dir = self._check_and_create_folder(self.log_dir, "checkpoint")
         self.model_dir = self._check_and_create_folder(self.log_dir, "model")
@@ -28,6 +33,7 @@ class ModelCheckpointCallback(CallBack):
 
     @staticmethod
     def _check_and_create_folder(log_dir: str, folder_name: str) -> str:
+        """Create an artifact subdirectory if needed and return its path."""
         path = f"{log_dir}/{folder_name}"
 
         if not os.path.exists(path):
@@ -36,12 +42,14 @@ class ModelCheckpointCallback(CallBack):
         return path
 
     def on_train_end(self, epoch: int, **kwargs):
+        """Save the final checkpoint and complete model after training."""
         logger.info("========= final model saving =========")
 
         self.save_checkpoint(epoch, **kwargs)
         self.save_model()
 
     def on_epoch_end(self, epoch: int, **kwargs):
+        """Persist artifacts requested by frequency or best-loss policies."""
         if epoch == 0:
             return
 
@@ -71,6 +79,7 @@ class ModelCheckpointCallback(CallBack):
             self.save_model(epoch)
 
     def save_checkpoint(self, epoch: int, **kwargs) -> None:
+        """Save resumable model, optimizer, epoch, and metric state."""
         ckpt_dir = f"{self.checkpoint_dir}/ckpt_{epoch}.pth"
 
         save_ckpt_dict = {
@@ -91,6 +100,7 @@ class ModelCheckpointCallback(CallBack):
         logger.info(f"saving ckpt epoch={epoch} to {ckpt_dir} success")
 
     def save_model(self, epoch: Optional[int] = None) -> None:
+        """Serialize the complete model, optionally with an epoch suffix."""
         model_dir = f"{self.model_dir}/model.pth" if epoch is None else f"{self.model_dir}/model_{epoch}.pth"
         torch.save(self.model, f"{model_dir}")
 

@@ -1,3 +1,5 @@
+"""Configuration and lifecycle orchestration for model training and evaluation."""
+
 import abc
 import argparse
 import os
@@ -96,6 +98,7 @@ class TrainerConfig(IConfig):
 
     @staticmethod
     def parse_args() -> argparse.Namespace:
+        """Parse repository, task, model, and configuration identifiers."""
         parser = argparse.ArgumentParser(description="Train Model")
 
         parser.add_argument("--repo_path", type=str, help="current repo path")
@@ -109,7 +112,8 @@ class TrainerConfig(IConfig):
         return args
 
     def _create_logs_path(self, task_type: str) -> None:
-        # only model train task job will create/remove logs path
+        """Create the experiment log directory for model-training tasks."""
+        # Evaluation reuses existing artifacts and therefore does not create logs.
         if task_type != MODEL_TRAIN:
             return
 
@@ -139,6 +143,7 @@ class TrainerConfig(IConfig):
         # logger.info(f"log base path {exp_logs_path} setup done")
 
     def get_config(self) -> Dict:
+        """Return all resolved task configuration sections."""
         return {
             "task_base": self.task_base,
             "task_data": self.task_data,
@@ -148,40 +153,43 @@ class TrainerConfig(IConfig):
 
 
 class BaseTrainer(abc.ABC):
+    """Coordinate datasets, models, optimization, callbacks, and evaluation."""
+
     dataset_class = Union[IndexedTrainDataset, BaseIterableDataset]
 
     def __init__(self):
+        """Load task configuration and initialize runtime component slots."""
         logger.info("=== Init BaseTrainer start ===")
 
         config = TrainerConfig()
 
         logger.info(f"input BaseTrainer: {config.get_config()}")
 
-        # === init config
+        # Retain each configuration section for specialized trainers.
         self.task_base: Dict = config.task_base
         self.task_data: Dict = config.task_data
         self.task_trainer: Dict = config.task_trainer
         self.task_train: Dict = config.task_train
 
-        # === init tuning param
+        # Training components are created lazily once datasets are ready.
         self.model: Optional[nn.Module] = None
         self.loss: Optional[nn.Module] = None
         self.optimizer: Optional[torch.optim.Optimizer] = None
         self.scheduler: Optional[torch.optim.lr_scheduler.LRScheduler] = None
         self.metrics: Dict[str, callable] = {}
 
-        # === init callback
+        # The callback list is assembled after the optimizer is available.
         self.callback: Optional[CallbackList] = None
 
-        # === init labels
+        # Labels determine the keys used for losses and metrics.
         self.labels: Optional[List[str]] = self.task_train["labels"]
 
-        # === init others
+        # Runtime flags control device placement and optional graph tracing.
         self.gpu: bool = self.task_trainer["gpu"]
         self.gpu_num: int = self.task_trainer["gpu_num"]
         self.static_graph: bool = self.task_trainer.get("static_graph", False)
 
-        # === init debug
+        # Debug mode enables detailed per-step timing logs.
         self.debug: bool = self.task_trainer.get("debug", False)
 
         logger.info("=== Init BaseTrainer done ===")
@@ -190,7 +198,8 @@ class BaseTrainer(abc.ABC):
     def create_dataset(
         self,
     ) -> (Union[IndexedTrainDataset, BaseIterableDataset], Union[IndexedTrainDataset, BaseIterableDataset]):
-        # deprecated: in the future, the dataset should only come from the task_trainer["dataset_param"]
+        """Create training and validation datasets from the merged task settings."""
+        # Compatibility path: task data is still merged into trainer dataset settings.
         task_data = {**self.task_data, **self.task_trainer["dataset_param"]}
 
         train_data_config = {**task_data, **{"data_type": TRAIN_NAME}}
@@ -205,9 +214,11 @@ class BaseTrainer(abc.ABC):
 
     # === model ===
     def create_model(self) -> None:
+        """Build the concrete task model in a specialized trainer."""
         raise NotImplementedError("please implement create_model func")
 
     def model_to_cuda(self) -> None:
+        """Move the model to CUDA and enable data parallelism when requested."""
         if not self.gpu:
             return
 
@@ -223,6 +234,7 @@ class BaseTrainer(abc.ABC):
         logger.info(f"model device count: {torch.cuda.device_count()}")
 
     def print_model(self, model: nn.Module, inputs: Dict):
+        """Log the model and, on CPU, a representative structural summary."""
         default_summary_info = {
             "show_input": False,
             "show_hierarchical": False,
@@ -253,6 +265,7 @@ class BaseTrainer(abc.ABC):
         logger.info(str_summary)
 
     def create_optimize(self) -> None:
+        """Create the optimizer selected by trainer configuration."""
         optimizer_param = self.task_trainer["optimizer_param"]
 
         if optimizer_param["name"] == "adam":
@@ -261,6 +274,7 @@ class BaseTrainer(abc.ABC):
             raise ValueError(f"optimizer name do not set properly, please check: {optimizer_param['optimizer']}")
 
     def create_lr(self) -> None:
+        """Create the configured per-step learning-rate scheduler."""
         optimizer_param = self.task_trainer["optimizer_param"]
 
         scheduler_method = optimizer_param.get("scheduler", "default")
@@ -281,6 +295,7 @@ class BaseTrainer(abc.ABC):
             self.scheduler = DefaultLRScheduler(self.optimizer, gamma=decay_per_step)
 
     def create_loss(self) -> None:
+        """Create the configured training-loss module."""
         loss_param = self.task_trainer["loss_param"]
 
         if loss_param["name"] == "mse":
@@ -291,6 +306,7 @@ class BaseTrainer(abc.ABC):
             raise ValueError(f"loss name do not set properly, please check: {loss_param['name']}")
 
     def create_metrics(self):
+        """Register metric functions requested by the trainer configuration."""
         metrics_param = self.task_trainer.get("metrics_param", {})
 
         for p in metrics_param:
@@ -302,6 +318,7 @@ class BaseTrainer(abc.ABC):
                 raise ValueError(f"metrics name do not set properly, please check: {p}")
 
     def create_callback(self) -> None:
+        """Assemble callbacks used during the training lifecycle."""
         callback_param = self.task_trainer["callback_param"]
         callback_list = []
 
@@ -330,6 +347,7 @@ class BaseTrainer(abc.ABC):
         )
 
     def create_evaluation_callback(self) -> None:
+        """Assemble the reduced callback set used for standalone evaluation."""
         callback_param = self.task_trainer["callback_param"]
         callback_list = []
 
@@ -348,6 +366,7 @@ class BaseTrainer(abc.ABC):
         )
 
     def init_model_weights(self) -> int:
+        """Restore model and optimizer state and return the resumed epoch."""
         init_model_weights = self.task_trainer.get("init_model_weights", False)
 
         if not init_model_weights:
@@ -372,14 +391,14 @@ class BaseTrainer(abc.ABC):
 
     # === train ===
     def train(self):
+        """Run the configured training and validation epochs."""
         task_trainer = self.task_trainer
 
         # ====== Params ======
         epoch = task_trainer["epochs"]
         dataset_param = task_trainer["dataset_param"]
 
-        # corner case test:
-        # if infinite = True and per_epoch_steps = None, the model will stuck in train loops
+        # Infinite datasets require an explicit step limit to terminate each epoch.
         if not task_trainer.get("per_epoch_steps", None) and task_trainer.get("infinite", False):
             raise ValueError("when infinite = True, please setup the per_epoch_steps")
 
@@ -464,6 +483,7 @@ class BaseTrainer(abc.ABC):
         self.callback.on_train_end(epoch=epoch)
 
     def evaluation(self):
+        """Load a test dataset and evaluate a restored model checkpoint."""
         task_trainer = self.task_trainer
 
         # ====== Params ======
@@ -514,6 +534,7 @@ class BaseTrainer(abc.ABC):
         self.callback.on_evaluation_end(epoch=epoch, val_metrics=val_metrics)
 
     def compute_loss(self, predictions: Dict[str, Tensor], labels: Dict[str, Tensor]) -> Dict[str, Tensor]:
+        """Compute the configured loss independently for each label."""
         losses = dict()
 
         for label_name in self.labels:
@@ -527,6 +548,7 @@ class BaseTrainer(abc.ABC):
     def compute_metrics(
         self, metrics_func: callable, predictions: Dict[str, Tensor], labels: Dict[str, Tensor]
     ) -> Union[Dict[str, Tensor], Tensor]:
+        """Apply one metric function independently to every configured label."""
         metrics = dict()
 
         for label_name in self.labels:
@@ -538,6 +560,7 @@ class BaseTrainer(abc.ABC):
         return metrics
 
     def to_device(self, data: Dict[str, torch.Tensor]) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
+        """Move a tensor or tensor mapping to CUDA when GPU mode is enabled."""
         if self.gpu:
             if isinstance(data, torch.Tensor):
                 return data.cuda(non_blocking=True)
@@ -548,11 +571,13 @@ class BaseTrainer(abc.ABC):
     def post_transform_data(
         self, data: (Union[Dict[str, Tensor], Tensor], Union[Dict[str, Tensor], Tensor])
     ) -> (Union[Dict[str, Tensor], Tensor], Union[Dict[str, Tensor], Tensor], Dict[str, Any]):
+        """Move a training batch to its device and return optional model arguments."""
         inputs, labels = data
 
         return self.to_device(inputs), self.to_device(labels), {}
 
     def train_step(self, model: nn.Module, data_loader: DataLoader) -> Dict:
+        """Train for one epoch and return averaged losses plus timing metrics."""
         task_trainer = self.task_trainer
 
         per_epoch_steps: Optional[int] = task_trainer.get("per_epoch_steps", None)
@@ -569,13 +594,12 @@ class BaseTrainer(abc.ABC):
 
             step_time_start = time.time()
 
-            # Forward pass: compute predicted y by passing x to the model.
-            # note: by default, we assume batch size = 1
+            # Move the batch first; specialized trainers may also derive model arguments.
             train_inputs, train_labels, args = self.post_transform_data(data)
 
             time_2_device = time.time()
 
-            # Compute and print loss.
+            # Run the forward pass and combine per-label losses for backpropagation.
             outputs = model(train_inputs, **args)  # noqa
 
             loss: Union[Tensor, Dict[str, Tensor]] = self.compute_loss(outputs, train_labels)
@@ -593,14 +617,10 @@ class BaseTrainer(abc.ABC):
 
             time_2_fw = time.time()
 
-            # Before the backward pass, use the optimizer object to zero all the
-            # gradients for the variables it will update (which are the learnable
-            # weights of the model). This is because by default, gradients are
-            # accumulated in buffers( i.e, not overwritten) whenever .backward()
-            # is called. Checkout docs of torch.autograd.backward for more details.
+            # Clear accumulated gradients before computing this batch's gradients.
             self.optimizer.zero_grad()
 
-            # Backward pass: compute gradient of the loss with respect to model parameters
+            # Backpropagate the combined objective and update model parameters.
             total_loss.backward()
 
             # def check_grad(name, param):
@@ -617,7 +637,6 @@ class BaseTrainer(abc.ABC):
             #             print(f"==> {name} {param.tolist()} {param.grad}")
             #         raise Exception("value error, has grad problem")
 
-            # Calling the step function on an Optimizer makes an update to its parameters
             self.optimizer.step()
 
             self.scheduler.step()
@@ -645,19 +664,23 @@ class BaseTrainer(abc.ABC):
         return metrics
 
     def compute_validation_loss(self, predictions: Dict[str, Tensor], labels: Dict[str, Tensor]) -> Dict[str, Tensor]:
+        """Compute validation losses; specialized trainers may override this policy."""
         return self.compute_loss(predictions, labels)
 
     def validation_step_check(self, epoch: int, is_last_epoch: bool) -> bool:
+        """Return whether validation should run for the current epoch."""
         return True
 
     def post_transform_val_data(
         self, data: (Union[Dict[str, Tensor], Tensor], Union[Dict[str, Tensor], Tensor])
     ) -> (Union[Dict[str, Tensor], Tensor], Union[Dict[str, Tensor], Tensor], Dict[str, Any]):
+        """Move a validation batch and return optional model arguments."""
         inputs, labels = data
 
         return self.to_device(inputs), self.to_device(labels), {}
 
     def validation_step(self, model: nn.Module, data_loader: DataLoader, epoch: int, is_last_epoch: bool) -> Dict:
+        """Evaluate one validation pass and return averaged losses and metrics."""
         if not self.validation_step_check(epoch, is_last_epoch):
             return dict()
 

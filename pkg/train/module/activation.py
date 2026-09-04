@@ -1,3 +1,5 @@
+"""Factory and identifiers for supported PyTorch activation functions."""
+
 import torch.nn as nn
 
 # Constants for supported activation functions

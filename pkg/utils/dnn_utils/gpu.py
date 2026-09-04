@@ -1,3 +1,5 @@
+"""Print a quick diagnostic summary of the available CUDA devices."""
+
 import torch
 
 print(torch.cuda.is_available())
