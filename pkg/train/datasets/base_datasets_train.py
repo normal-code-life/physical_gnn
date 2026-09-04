@@ -1,3 +1,5 @@
+"""Indexed and iterable base datasets for model training."""
+
 import abc
 import os
 from typing import Dict, Optional
@@ -35,24 +37,20 @@ class BaseTrainDataset(ITrainDataset):
         logger.info(f"=== Init {data_config['data_type']} data config start ===")
         logger.info(f"data_config is: {data_config}")
 
-        # common config
-        # === model_name
+        # Model and task names were historically stored here; callers now own them.
         # self._model_name = data_config["model_name"]
 
-        # === data type
         # self._task_name = data_config["task_name"]
         self._data_type = data_config["data_type"]
 
-        # === exp
         # self._exp_name = data_config.get("exp_name", "")
 
-        # common path
-        # === base path
+        # Resolve the repository and data roots used by all storage formats.
         self._base_repo_path = data_config["repo_path"]
         self._base_data_path = data_config["base_data_path"]
         # self._base_task_path = data_config["task_path"]
 
-        # === traditional model training dataset path (non-tfrecord version)
+        # Always normalize with training statistics, including validation/test data.
         self._dataset_path = f"{self._base_data_path}/datasets/{self._data_type}"
         self._stats_data_path = f"{self._base_data_path}/stats/{TRAIN_NAME}"  # by default, use train dataset scaling
         self._data_size_path = f"{self._base_data_path}/stats/{self._data_type}/data_size.npy"
@@ -63,43 +61,49 @@ class BaseTrainDataset(ITrainDataset):
         logger.info(f"dataset_path is {self._dataset_path}")
         logger.info(f"data_size_path is {self._data_size_path}")
 
-        # hdf5 config
+        # HDF5 shards are addressed by a numeric format placeholder.
         self._dataset_h5_path = f"{self._dataset_path}" + "/data_{}.h5"
 
         logger.info(f"dataset_h5_path is {self._dataset_h5_path}")
 
-        # tfrecord config
-        # === tfrecord model training dataset path (tfrecord version)
+        # TFRecord shards follow the same numeric naming convention.
         self._tfrecord_data_path = f"{self._dataset_path}" + "/data_{}.tfrecord"
 
         logger.info(f"tfrecord_data_path is {self._tfrecord_data_path}")
 
-        self._context_description: Optional[Dict[str, str]] = None  # please overwrite this variable
-        self._feature_description: Optional[Dict[str, str]] = None  # please overwrite this variable
+        # Concrete datasets must provide schemas before loading records.
+        self._context_description: Optional[Dict[str, str]] = None
+        self._feature_description: Optional[Dict[str, str]] = None
 
         self._validation()
 
-        # transform config
+        # Subclasses install their sample transformation pipeline here.
         self._transform: Optional[transforms.Compose] = None
 
         logger.info(f"=== Init {data_config['data_type']} data config done ===")
 
     def __len__(self) -> int:
+        """Return the persisted number of samples in this dataset split."""
         return int(np.load(self._data_size_path))
 
     def _validation(self):
+        """Ensure that dataset preparation recorded the split size."""
         if not os.path.exists(self._data_size_path):
             raise IOError(f"Data size file not found: {self._data_size_path}")
 
     def _init_transform(self) -> None:
+        """Initialize a sample transform in a concrete dataset class."""
         return
 
     @abc.abstractmethod
     def get_head_inputs(self, batch_size) -> Dict:
+        """Return representative inputs from a concrete dataset class."""
         raise NotImplementedError("Subclasses must implement get_head_inputs method")
 
 
 class IndexedTrainDataset(BaseTrainDataset, Dataset):
+    """Base class for random-access datasets addressed by sample index."""
+
     def get_head_inputs(self, batch_size) -> Dict:
         """Get head inputs for model inspection.
 
@@ -127,15 +131,16 @@ class BaseIterableDataset(BaseTrainDataset, IterableDataset):
     """
 
     def __init__(self, data_config: Dict, *args, **kwargs) -> None:
+        """Initialize file counts and streaming shuffle configuration."""
         super().__init__(data_config, *args, **kwargs)
-        # config
-        # === path file size
+        # Each file represents one loadable dataset shard.
         self._num_of_files = len(os.listdir(self._dataset_path))
 
-        # === data related
+        # A missing queue size leaves the source ordering unchanged.
         self._shuffle_queue_size = data_config.get("shuffle_queue_size", None)
 
     def __iter__(self):
+        """Return a sample iterator from a concrete streaming dataset."""
         raise NotImplementedError("Subclasses must implement __iter__ method")
 
     def get_head_inputs(self, batch_size) -> Dict:
@@ -171,19 +176,23 @@ class MultiTFRecordDataset(BaseIterableDataset):
     """
 
     def __init__(self, data_config: Dict, *args, **kwargs) -> None:
+        """Initialize an uncompressed multi-file TFRecord dataset."""
         super().__init__(data_config, *args, **kwargs)
         # config
         # === file compression
         self._compression_type = None
 
     def _init_transform(self):
+        """Initialize TFRecord sample transforms in a concrete subclass."""
         return
 
     def __iter__(self) -> (Dict, torch.Tensor):
+        """Iterate over worker-partitioned TFRecord shards."""
         shift, num_workers = 0, 0
 
         worker_info = get_worker_info()
         if worker_info is not None:
+            # Give each worker a deterministic seed and a disjoint shard offset.
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
             shift, num_workers = worker_info.id, worker_info.num_workers
 
@@ -220,13 +229,16 @@ class MultiHDF5Dataset(BaseIterableDataset):
     """
 
     def _init_transform(self):
+        """Initialize HDF5 sample transforms in a concrete subclass."""
         return
 
     def __iter__(self) -> (Dict, torch.Tensor):
+        """Iterate over worker-partitioned HDF5 shards."""
         shift, num_workers = 0, 0
 
         worker_info = get_worker_info()
         if worker_info is not None:
+            # Give each worker a deterministic seed and a disjoint shard offset.
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
             shift, num_workers = worker_info.id, worker_info.num_workers
 

@@ -1,3 +1,5 @@
+"""Training callback that logs progress and optionally snapshots task inputs."""
+
 import os
 import time
 from typing import Dict
@@ -36,6 +38,7 @@ class LogCallback(CallBack):
     """
 
     def __init__(self, task_base_param: Dict, param: Dict) -> None:
+        """Configure log frequency, optional snapshots, and debug timing output."""
         super(LogCallback, self).__init__(task_base_param, param)
 
         self.config_path = task_base_param["config_path"]
@@ -53,8 +56,8 @@ class LogCallback(CallBack):
         self.logger = init_logger("LOGS_CALLBACK")
 
     def on_train_begin(self, **kwargs):
-        self.logger.info("====== model training start ======")
         """Called at the beginning of training. Optionally saves the config file or code based on parameters."""
+        self.logger.info("====== model training start ======")
         if self.save_config:
             cmd = f"cp {self.config_path} {self.log_dir}/"
             self.logger.info(f"execute {cmd}")
@@ -66,6 +69,7 @@ class LogCallback(CallBack):
             os.system(cmd)
 
     def on_train_end(self, **kwargs):
+        """Record that the training lifecycle has finished."""
         self.logger.info("====== model training end ======")
 
     def on_evaluation_end(self, epoch, **kwargs):
@@ -127,6 +131,7 @@ class LogCallback(CallBack):
             self.logger.info(f"metrics: {epoch} - {round(time.time() - self.start_time, 2)}s - {msg}")
 
     def on_train_batch_end(self, batch, **kwargs):
+        """Log detailed per-batch timings when debug logging is enabled."""
         if not self.debug:
             return
 

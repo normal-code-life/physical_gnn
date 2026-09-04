@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Configure and launch evaluation for the default passive BiV model.
 export TASK_NAME="passive_biv"
 export MODEL_NAME="fe_heart_sim_sage"
 

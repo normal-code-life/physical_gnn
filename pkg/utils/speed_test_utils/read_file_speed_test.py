@@ -23,6 +23,7 @@ from pkg.utils.other_utils import io
 
 
 def measure_io_speed(directory_path):
+    """Read every file below ``directory_path`` and print throughput statistics."""
     # Check if the provided path is a valid directory
     if not os.path.isdir(directory_path):
         print(f"Directory {directory_path} does not exist.")

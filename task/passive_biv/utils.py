@@ -1,3 +1,5 @@
+"""Legacy configuration loaders for passive BiV task scripts."""
+
 import os
 import sys
 from typing import Dict
@@ -13,12 +15,12 @@ def import_data_preparation_config() -> Dict:
     """
     task_name = "passive_biv"
 
-    # generate root path
+    # Derive an absolute repository root from the executing script.
     cur_path = os.path.abspath(sys.argv[0])
 
     repo_root_path = get_repo_path(cur_path)
 
-    # fetch data config
+    # Load the task configuration and attach standard artifact paths.
     data_config = load_yaml(f"{repo_root_path}/task/{task_name}/data_preparation/config/data_config.yaml")
 
     data_config["repo_path"] = repo_root_path
@@ -46,14 +48,14 @@ def import_data_config(task_name: str, model_name: str) -> Dict:
             - Task data path
             - Task path
     """
-    # generate root path
+    # Derive an absolute repository root from the executing script.
     cur_path = os.path.abspath(sys.argv[0])
 
     repo_root_path = get_repo_path(cur_path)
 
     data_config = {}
 
-    # fetch data config
+    # Merge the selected model's task-data section with standard paths.
     base_config = load_yaml(f"{repo_root_path}/task/{task_name}/{model_name}/config/data_config.yaml")
     data_config.update(base_config["task_data"])
 

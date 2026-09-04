@@ -1,3 +1,5 @@
+"""Tensor operations shared by neural-network components."""
+
 import torch
 
 

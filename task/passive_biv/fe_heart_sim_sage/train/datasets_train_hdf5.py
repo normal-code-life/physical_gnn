@@ -1,3 +1,5 @@
+"""HDF5 training dataset for the FE Heart Sim GraphSAGE model."""
+
 from typing import Dict
 
 import numpy as np
@@ -25,6 +27,7 @@ class FEHeartSimSageTrainDataset(MultiHDF5Dataset):
     """
 
     def __init__(self, data_config: Dict) -> None:
+        """Resolve statistic files, declare schemas, and build preprocessing transforms."""
         super().__init__(data_config)
         # node related features
         # === save data path
@@ -70,9 +73,9 @@ class FEHeartSimSageTrainDataset(MultiHDF5Dataset):
         self._init_transform()
 
     def __len__(self) -> int:
+        """Return the scalar sample count persisted during data preparation."""
         return np.load(self._data_size_path).astype(np.int64).item()
 
-    # init transform data
     def _init_transform(self):
         """Initialize the data transformation pipeline.
 
@@ -111,11 +114,11 @@ class FEHeartSimSageTrainDataset(MultiHDF5Dataset):
             }
             transform_list.append(MaxMinNorm(norm_config_disp))
 
-        # convert data dim
+        # Optional dimension conversion is retained for compatible older datasets.
         # convert_data_dim_config = {"mat_param": -1, "pressure": -1, "shape_coeffs": -1, "time": -1}
         # transform_list.append(SqueezeDataDim(convert_data_dim_config))
 
-        # convert to model inputs
+        # Separate model features from the configured objectives.
         convert_model_input_config = {"labels": self._labels}
 
         transform_list.append(ConvertToModelInputs(convert_model_input_config, True))

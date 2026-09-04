@@ -1,3 +1,5 @@
+"""Base workflow for generating datasets and their statistics."""
+
 import os
 import platform
 from typing import Dict, Optional
@@ -18,21 +20,21 @@ class AbstractDataPreparationDataset(IDataPreparationDataset):
     """
 
     def __init__(self, data_config: Dict) -> None:
+        """Initialize paths and overwrite policies from ``data_config``."""
         logger.info(f"=== Init BaseAbstractDataset {data_config['data_type']} data config start ===")
         logger.info(f"data_config is: {data_config}")
 
-        # common config
+        # Record the host platform for downstream path and runtime decisions.
         self._platform = platform.system()
 
-        # === data type
+        # Identify the split currently being prepared.
         self._data_type = data_config["data_type"]
 
-        # path config
-        # === base path
+        # Resolve repository and data roots before deriving artifact paths.
         self._base_repo_path = data_config["repo_path"]
         self._base_data_path = data_config["base_data_path"]
 
-        # === dataset and stats path
+        # Keep generated samples and statistics in split-specific directories.
         self._stats_data_path = f"{self._base_data_path}/stats/{self._data_type}"
         self._dataset_path = f"{self._base_data_path}/datasets/{self._data_type}"
         self._data_size_path = f"{self._stats_data_path}/data_size.npy"
@@ -43,23 +45,24 @@ class AbstractDataPreparationDataset(IDataPreparationDataset):
         logger.info(f"dataset_path is {self._dataset_path}")
         logger.info(f"data_size_path is {self._data_size_path}")
 
-        # hdf5 config
+        # Use a format placeholder because preparation may produce multiple shards.
         self._dataset_h5_path = f"{self._dataset_path}" + "/data_{}.h5"
 
         logger.info(f"dataset_h5_path is {self._dataset_h5_path}")
 
-        # dataset type
-        self._context_description: Optional[Dict[str, str]] = None  # please overwrite this variable
-        self._feature_description: Optional[Dict[str, str]] = None  # please overwrite this variable
+        # Concrete datasets must describe their context and feature schemas.
+        self._context_description: Optional[Dict[str, str]] = None
+        self._feature_description: Optional[Dict[str, str]] = None
 
-        # others
+        # Overwrite flags control whether existing artifacts are regenerated.
         self._overwrite_data = data_config["overwrite_data"]
         self._overwrite_stats = data_config["overwrite_stats"]
 
-        # source
+        # Preserve the source mapping so callers can inspect the original values.
         self._data_config = data_config
 
     def _validation(self) -> None:
+        """Ensure that the configured base data directory exists."""
         if not os.path.isdir(self._base_data_path):
             raise NotADirectoryError(f"No directory at: {self._base_data_path}")
 
@@ -85,13 +88,16 @@ class AbstractDataPreparationDataset(IDataPreparationDataset):
         logger.info("=== Dataset preparation process complete ===")
 
     def _data_generation(self) -> None:
+        """Generate prepared samples in a concrete dataset implementation."""
         raise NotImplementedError("please implement 'data_generation' method")
 
     def _data_stats_generation(self) -> None:
+        """Generate dataset statistics in a concrete implementation."""
         raise NotImplementedError("please implement 'data_stats_generation' method")
 
     @property
     def get_config(self) -> Dict:
+        """Return resolved paths, schema descriptions, and source configuration."""
         config = {
             "platform": self._platform,
             "data_type": self._data_type,

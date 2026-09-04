@@ -6,6 +6,7 @@
 
 export PYTHONPATH=${PYTHONPATH}:${PROJECT_PATH}
 
+# Resolve the task entry point from the task mode supplied by the launcher.
 TASK_PATH=${PROJECT_PATH}/task/${TASK_NAME}
 
 echo "task_path: ${TASK_PATH}"
@@ -36,4 +37,5 @@ else
   exit 1
 fi
 
+# Forward the mode-specific arguments to the selected Python entry point.
 python "${TASK_PATH}"/"${file_name}".py ${args}

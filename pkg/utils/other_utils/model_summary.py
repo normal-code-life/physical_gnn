@@ -1,4 +1,4 @@
-"""This is a copy from: pytorch-model-summary."""
+"""Generate a readable layer and parameter summary for a PyTorch model."""
 
 from collections import OrderedDict
 
@@ -16,10 +16,14 @@ def summary_model(
     max_depth=1,
     show_parent_layers=False,
 ):
+    """Run a sample forward pass and format observed layer shapes and counts."""
     max_depth = max_depth if max_depth is not None else 9999
 
     def build_module_tree(module):
+        """Record the parent path and display depth of each leaf module."""
+
         def _in(module, id_parent, depth):
+            """Recursively add child modules to the structural summary."""
             for key, c in module.named_children():
                 # ModuleList and Sequential do not count as valid layers
                 if isinstance(c, (nn.ModuleList, nn.Sequential)):
@@ -60,10 +64,14 @@ def summary_model(
             module_summary[k]["show"] = v["depth"] == max_depth or (v["depth"] < max_depth and v["n_children"] == 0)
 
     def register_hook(module):
+        """Register a shape-and-parameter hook on a visible module."""
+
         def shapes(x):
+            """Flatten nested tensor containers into a list of shapes."""
             _lst = list()
 
             def _shapes(_):
+                """Collect shapes recursively from one nested value."""
                 if isinstance(_, torch.Tensor):
                     _lst.append(list(_.size()))
                 elif isinstance(_, (tuple, list)):
@@ -78,6 +86,7 @@ def summary_model(
             return _lst
 
         def hook(module, input, output=None):
+            """Capture one module's observed shapes and parameter counts."""
             if id(module) in module_mapped:
                 return
 
@@ -156,9 +165,7 @@ def summary_model(
         _len_str_shapes,
     )
 
-    """ starting to build output text """
-
-    # Table header
+    # Format captured module data as a fixed-width table.
     lines = list()
     lines.append("=== Print Model Detail Architecture ===")
     lines.append("-" * _len_line)

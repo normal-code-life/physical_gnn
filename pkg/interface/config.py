@@ -1,3 +1,5 @@
+"""Configuration interfaces shared by concrete task implementations."""
+
 import abc
 from typing import Dict
 
@@ -7,4 +9,5 @@ class IConfig(abc.ABC):
 
     @abc.abstractmethod
     def get_config(self) -> Dict:
+        """Return the configuration represented by this object."""
         raise NotImplementedError("please implement 'get_config' method")

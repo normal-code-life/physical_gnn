@@ -1,3 +1,5 @@
+"""Feature pooling layers used by graph aggregation models."""
+
 from typing import Dict
 
 import torch
@@ -20,6 +22,7 @@ class PoolingLayer(BaseModule):
     """
 
     def __init__(self, config: Dict, *args, **kwargs) -> None:
+        """Store the aggregation dimension and shape-retention policy."""
         super(PoolingLayer, self).__init__(config, *args, **kwargs)
 
         self._agg_dim = config.get("agg_dim", -1)
@@ -40,6 +43,7 @@ class MeanAggregator(PoolingLayer):
     """
 
     def __init__(self, config: Dict, *args, **kwargs) -> None:
+        """Initialize mean pooling and assign its configuration prefix."""
         config["prefix_name"] = "mean_pooling_agg"
         super(MeanAggregator, self).__init__(config, *args, **kwargs)
 
@@ -72,6 +76,7 @@ class SUMAggregator(PoolingLayer):
     """
 
     def __init__(self, config: Dict, *args, **kwargs) -> None:
+        """Initialize sum pooling and assign its configuration prefix."""
         config["prefix_name"] = "sum_pooling_agg"
         super(SUMAggregator, self).__init__(config, *args, **kwargs)
 

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Configure and launch single-case evaluation for the selected model.
 export TASK_NAME="passive_biv"
 export MODEL_NAME="fe_heart_sim_sage"
 
@@ -14,7 +15,6 @@ export PROJECT_PATH="$(cd `dirname $0`/../../; pwd)"
 echo "project root path: ${PROJECT_PATH}"
 
 export CONFIG_NAME="train_config"
-export TASK_TYPE="main_single_evaluation_v2"
-
+export TASK_TYPE="main_single_evaluation"
 
 sh "${PROJECT_PATH}/common/sbin/main_process.sh"

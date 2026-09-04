@@ -1,3 +1,5 @@
+"""Transformer attention components used by graph-model experiments."""
+
 import math
 from typing import Dict
 
@@ -10,7 +12,10 @@ from pkg.train.model.base_model import BaseModule
 
 
 class MultiHeadAttention(BaseModule):
+    """Scaled dot-product attention split across multiple representation heads."""
+
     def __init__(self, config: Dict, *args, **kwargs) -> None:
+        """Validate dimensions and initialize attention projections."""
         super().__init__(config, *args, **kwargs)
         self._d_model: int = config["d_model"]
         self._n_heads: int = config["n_heads"]
@@ -23,21 +28,26 @@ class MultiHeadAttention(BaseModule):
 
     @property
     def d_model(self) -> int:
+        """Return the full embedding width."""
         return self._d_model
 
     @property
     def n_heads(self) -> int:
+        """Return the number of parallel attention heads."""
         return self._n_heads
 
     @property
     def _drop_rate(self) -> float:
+        """Return the dropout probability applied to attention weights."""
         return self._dropout_rate
 
     @property
     def d_k(self) -> int:
+        """Return the embedding width assigned to each attention head."""
         return self._d_k
 
     def _init_graph(self) -> None:
+        """Create query, key, value, output, and dropout layers."""
         self._w_q: nn.Module = nn.Linear(self._d_model, self._d_model)
         self._w_k: nn.Module = nn.Linear(self._d_model, self._d_model)
         self._w_v: nn.Module = nn.Linear(self._d_model, self._d_model)
@@ -47,6 +57,7 @@ class MultiHeadAttention(BaseModule):
         self._scale: float = math.sqrt(self._d_k)
 
     def get_config(self) -> Dict:
+        """Return the resolved attention configuration."""
         config = super().get_config()
 
         module_config = {
@@ -61,6 +72,7 @@ class MultiHeadAttention(BaseModule):
         return config
 
     def forward(self, query: Tensor, key: Tensor, value: Tensor, mask=None) -> Tensor:
+        """Apply multi-head scaled dot-product attention."""
         batch_size, seq, _ = query.shape  # batch_size, seq, _
 
         # (batch_size, seq, emb) => (batch_size, seq, n_head, sub_emb) => (batch_size, n_head, seq, sub_emb)

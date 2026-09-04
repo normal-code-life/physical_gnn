@@ -1,3 +1,5 @@
+"""Common configurable base class for PyTorch model components."""
+
 from typing import Dict
 
 from torch import nn
@@ -22,6 +24,7 @@ class BaseModule(nn.Module, IConfig):
     """
 
     def __init__(self, config: Dict, *args, **kwargs) -> None:
+        """Resolve the component prefix before initializing ``nn.Module``."""
         self._prefix_name = "base_module"
         if "prefix_name" in config:
             self._prefix_name = config["prefix_name"]
@@ -32,6 +35,7 @@ class BaseModule(nn.Module, IConfig):
 
     @property
     def prefix_name(self) -> str:
+        """Return the name prefix used for component configuration and logging."""
         return self._prefix_name
 
     def _init_graph(self) -> None:

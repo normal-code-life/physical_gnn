@@ -1,9 +1,12 @@
+"""Tests for geometric loss functions."""
+
 import torch
 
 from pkg.train.module.loss import EuclideanDistanceMSE
 
 
 def test_euclidean_distance_mse():
+    """Check Euclidean-distance loss against a known tensor result."""
     true = torch.tensor([[1, 2, 3], [4, 5, 6]])
 
     pred = torch.tensor([[2, 2, 3], [3, 5, 7]])

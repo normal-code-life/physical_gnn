@@ -1,3 +1,5 @@
+"""Abstract interfaces for dataset preparation and model-training datasets."""
+
 import abc
 from typing import Dict
 
@@ -50,6 +52,8 @@ class IDataPreparationDataset(abc.ABC):
 
 
 class ITrainDataset(abc.ABC):
+    """Define the operations required from a training dataset."""
+
     @abc.abstractmethod
     def __len__(self) -> int:
         """Get dataset size.
@@ -61,6 +65,7 @@ class ITrainDataset(abc.ABC):
 
     @abc.abstractmethod
     def _validation(self) -> None:
+        """Validate the dataset configuration before it is consumed."""
         raise NotImplementedError("Subclasses must implement _validation method")
 
     @abc.abstractmethod

@@ -1,3 +1,5 @@
+"""Composable transformations for record conversion, normalization, and reshaping."""
+
 import abc
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -22,6 +24,7 @@ class DataTransform(abc.ABC):
         raise NotImplementedError("please implement this function __call__(self, *args, **kwargs)")
 
     def __repr__(self) -> str:
+        """Return a concise transform name for composed-pipeline displays."""
         return f"{self.__class__.__name__}()"
 
 
@@ -40,6 +43,7 @@ class TFRecordToTensor(DataTransform):
     }
 
     def __init__(self, config: Dict) -> None:
+        """Store TFRecord field names and their target tensor data types."""
         self.context_list = config["context_description"]
         self.feature_list = config["feature_description"]
 
@@ -87,6 +91,7 @@ class ToTensor(DataTransform):
     }
 
     def __init__(self, config: Dict) -> None:
+        """Store NumPy field names and their target tensor data types."""
         self.context_list = config["context_description"]
         self.feature_list = config["feature_description"]
 
@@ -132,6 +137,7 @@ class TensorToGPU(DataTransform):
     """
 
     def __init__(self, config: Dict) -> None:
+        """Store the legacy GPU enablement and device-index settings."""
         self.gpu = config["gpu"]
         self.cuda_core = config["cuda_core"]
 
@@ -175,6 +181,7 @@ class Norm(DataTransform):
     def __init__(
         self, config: Dict, global_scaling: bool = True, coarse_dim: bool = False, setup_val: bool = False
     ) -> None:
+        """Load statistics and configure global or sample-level normalization."""
         self.normalization_config = config
         if not setup_val:
             self.feature_config: Dict[str, Dict[str, Tensor]] = self.load_stats_file()
@@ -227,6 +234,7 @@ class MaxMinNorm(Norm):
     def __init__(
         self, config: Dict, global_scaling: bool = True, coarse_dim: bool = False, setup_val: bool = False
     ) -> None:
+        """Initialize min-max normalization and its statistic keys."""
         super().__init__(config, global_scaling, coarse_dim, setup_val)
 
         self.max_val_name = MAX_VAL
@@ -359,6 +367,7 @@ class ConvertToModelInputs(DataTransform):
     """
 
     def __init__(self, config: Dict, multi_obj: bool = False) -> None:
+        """Store label field names and the multiple-objective output policy."""
         self.labels_name = config["labels"]
         self.multi_obj = multi_obj
 
@@ -408,6 +417,7 @@ class ClampTensor(DataTransform):
     """
 
     def __init__(self, config: Dict) -> None:
+        """Store per-field lower and upper clamp bounds."""
         self.clamp_config = config
 
     def __call__(
@@ -446,6 +456,7 @@ class SqueezeDataDim(DataTransform):
     """
 
     def __init__(self, config: Dict) -> None:
+        """Store the singleton dimension to remove for each configured field."""
         self.feature_config = config
 
     def __call__(
@@ -480,6 +491,7 @@ class UnSqueezeDataDim(DataTransform):
     """
 
     def __init__(self, config: Dict) -> None:
+        """Store the singleton dimension to add for each configured field."""
         self.feature_config = config
 
     def __call__(

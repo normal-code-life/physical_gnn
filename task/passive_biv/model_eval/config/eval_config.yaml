@@ -5,9 +5,7 @@ nodes_per_sections: [20, 30, 30, 10, 10]
 down_sample_node: 10000
 device: "cpu"
 normalize_val_objective: True
-
-model_path: log/passive_biv/non_norm_5_3/model/model_3000.pth
+model_path: log/passive_biv/base/model/model.pth
 selected_node: 20
 select_edge_num: 12
-
-output_path: ./phy_gnn/task/passive_biv/tmp_for_test/test_model_5_3/
+output_path: tmp_for_test/
